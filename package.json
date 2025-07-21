@@ -1,12 +1,10 @@
 {
   "name": "cardpointe-checkout",
   "version": "1.0.0",
-  "license": "MIT",
   "scripts": {
     "dev": "vercel dev",
-    "build": "vercel build",
     "start": "vercel start"
-  }
-  
+  },
+  "license": "MIT"
 }
 
