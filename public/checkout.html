@@ -1,35 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Secure Payment</title>
+  <meta charset="UTF-8" />
+  <title>Secure Card Payment</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://fts.cardconnect.com/cardsecure/cs.js"></script>
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f7f7f7;
-      padding: 20px;
+      background-color: #f8f8f8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
     }
 
-    .container {
-      max-width: 400px;
-      margin: 40px auto;
+    .card-container {
       background: #fff;
-      padding: 30px 25px;
+      padding: 30px 24px;
+      width: 100%;
+      max-width: 420px;
       border-radius: 12px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
     }
 
     h2 {
       text-align: center;
-      margin-bottom: 24px;
       color: #333;
+      margin-bottom: 20px;
     }
 
     label {
@@ -42,28 +43,27 @@
     input {
       width: 100%;
       padding: 12px;
-      font-size: 16px;
       margin-bottom: 16px;
+      font-size: 16px;
       border: 1px solid #ccc;
       border-radius: 6px;
-      outline: none;
-      transition: border-color 0.3s;
     }
 
     input:focus {
+      outline: none;
       border-color: #98411C;
     }
 
     button {
-      background-color: #98411C;
-      color: white;
-      border: none;
-      padding: 14px;
       width: 100%;
+      padding: 14px;
+      background-color: #98411C;
+      color: #fff;
       font-size: 16px;
-      border-radius: 8px;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
       cursor: pointer;
-      transition: background-color 0.3s;
     }
 
     button:disabled {
@@ -72,17 +72,27 @@
     }
 
     .footer-note {
+      margin-top: 16px;
       text-align: center;
       font-size: 13px;
-      margin-top: 20px;
       color: #888;
     }
+
+    .error {
+      color: red;
+      font-size: 13px;
+      margin-bottom: 10px;
+      display: none;
+    }
+
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="card-container">
     <h2>Secure Card Payment</h2>
-    <form id="payment-form" novalidate>
+    <form id="payment-form">
+      <div class="error" id="error-box">Please fill in all fields correctly.</div>
+
       <label for="ccn">Card Number</label>
       <input type="text" id="ccn" placeholder="4111 1111 1111 1111" />
 
@@ -105,30 +115,56 @@
     const form = document.getElementById("payment-form");
     const inputs = form.querySelectorAll("input");
     const payBtn = document.getElementById("payBtn");
+    const errorBox = document.getElementById("error-box");
 
-    // Enable button when all inputs have value
-    function validateForm() {
-      const allFilled = Array.from(inputs).every(input => input.value.trim() !== "");
-      payBtn.disabled = !allFilled;
+    function validateInputs() {
+      let allValid = true;
+      inputs.forEach((input) => {
+        if (input.value.trim() === "") {
+          allValid = false;
+        }
+      });
+      payBtn.disabled = !allValid;
     }
 
     inputs.forEach(input => {
-      input.addEventListener("input", validateForm);
+      input.addEventListener("input", validateInputs);
     });
 
     CardSecure.init("ccn", {
       expiry: "exp",
       cvv: "cvv",
       postal: "zip",
-      callback: function (response) {
-        window.ReactNativeWebView?.postMessage(JSON.stringify(response));
+      callback: function(response) {
+        if (response && response.retref) {
+          // This will trigger in React Native WebView
+          window.ReactNativeWebView?.postMessage(JSON.stringify({
+            success: true,
+            retref: response.retref,
+            token: response.token,
+            amount: new URLSearchParams(window.location.search).get("amount") || "0"
+          }));
+        } else {
+          window.ReactNativeWebView?.postMessage(JSON.stringify({
+            success: false,
+            message: response.message || "Tokenization failed"
+          }));
+        }
       }
     });
 
-    form.addEventListener("submit", function (e) {
+    form.addEventListener("submit", function(e) {
       e.preventDefault();
+
+      if (payBtn.disabled) {
+        errorBox.style.display = "block";
+        return;
+      }
+
+      errorBox.style.display = "none";
       payBtn.disabled = true;
-      CardSecure.submit();
+
+      CardSecure.submit(); // Tokenize and send retref
     });
   </script>
 </body>
